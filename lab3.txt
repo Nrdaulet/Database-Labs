@@ -1,0 +1,160 @@
+CREATE DATABASE advanced_lab;
+\c advanced_lab;
+
+CREATE TABLE employees(
+    emp_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    department VARCHAR(50) DEFAULT NULL,
+    salary INT DEFAULT 40000,
+    hire_date DATE,
+    status VARCHAR(20) DEFAULT 'Active'
+);
+
+CREATE TABLE departments(
+    dept_id SERIAL PRIMARY KEY,
+    dept_name VARCHAR(50),
+    budget INT,
+    managet_id INT
+);
+
+CREATE TABLE projects(
+    project_id SERIAL PRIMARY KEY,
+    project_name VARCHAR(50),
+    dept_id INT,
+    start_date DATE,
+    end_date DATE,
+    budget INT
+);
+
+INSERT INTO employees(first_name, last_name,department)
+VALUES ('Nurdaulet','Bazarbayev','IT');
+
+INSERT INTO employees(first_name, last_name,department ,hire_date)
+VALUES ('Zhazira','Bigeldin','HR','2024-04-10');
+
+INSERT INTO departments(dept_name, budget, managet_id)
+VALUES
+    ('IT',120000,1),
+    ('HR',80000,2),
+    ('Sales',150000,3);
+
+INSERT INTO employees(first_name, last_name, department, salary, hire_date)
+VALUES ('Arzu','Life','Finance',42500*1.1,current_date);
+
+CREATE TEMP TABLE temp_employess AS
+    SELECT * FROM employees WHERE department = 'IT';
+
+UPDATE employees
+SET salary = salary*1.10;
+
+UPDATE employees
+SET  status = 'Senior'
+WHERE salary>60000 AND hire_date < '2020-01-01';
+
+UPDATE employees
+SET department = CASE
+    WHEN salary > 80000 THEN 'Management'
+    WHEN salary BETWEEN 50000 AND 80000 THEN 'Senior'
+    ELSE 'Junior'
+END;
+
+UPDATE employees
+SET department = DEFAULT
+WHERE status = 'Inactive';
+
+UPDATE departments d
+SET budget = (
+    SELECT AVG(salary)*1.2
+    FROM employees e
+    WHERE e.department=d.dept_name
+    );
+
+UPDATE employees
+SET salary=salary*1.15,
+    status = 'Promoted'
+WHERE department = 'Sales';
+
+DELETE FROM employees
+WHERE status = 'Terminated';
+
+DELETE FROM employees
+WHERE salary<40000
+    AND hire_date>'2023-01-01'
+    AND department IS NULL;
+
+DELETE FROM departments
+WHERE dept_id NOT IN (
+    SELECT DISTINCT dept_id
+    FROM projects
+    WHERE dept_id IS NOT NULL
+    );
+
+DELETE FROM projects
+WHERE end_date< '2023-01-01'
+RETURNING *;
+
+INSERT INTO employees(first_name, last_name, department, salary, hire_date)
+VALUES ('Null', 'Case',NULL,NULL,current_date);
+
+UPDATE employees
+SET department = 'Unassigned'
+WHERE department IS NULL;
+
+DELETE FROM employees
+WHERE salary IS NULL OR department IS NULL;
+
+INSERT INTO employees(first_name, last_name, department, salary, hire_date)
+VALUES ('Kunsulu','Bazarbayeva','IT',70000,current_date)
+RETURNING emp_id, first_name || ' ' || last_name AS full_name;
+
+UPDATE employees
+SET salary = salary+5000
+WHERE department ='IT'
+RETURNING emp_id,salary-5000 AS old_salary,salary AS new_salary;
+
+DELETE FROM employees
+WHERE hire_date<'2020-01-01'
+RETURNING *;
+
+INSERT INTO employees(first_name, last_name, department,salary,hire_date)
+SELECT 'Big','Boy','Accounter',55000,current_date
+WHERE NOT exists(
+    SELECT 1 FROM employees
+    WHERE first_name='Big' AND last_name='Boy'
+);
+
+UPDATE employees e
+SET salary=salary*(
+    CASE
+        WHEN (SELECT budget from departments d WHERE d.dept_name=e.department)>100000
+            THEN 1.10
+        ELSE 1.05
+    END
+);
+
+INSERT INTO employees(first_name, last_name,department,salary, hire_date)
+VALUES
+    ('Rooney', 'Wayne', 'Management', 120000, CURRENT_DATE),
+    ('Barry', 'Allen', 'IT', 60000, CURRENT_DATE),
+    ('Hal', 'Jordan', 'Sales', 65000, CURRENT_DATE),
+    ('Arthur', 'Curry', 'Logistics', 58000, CURRENT_DATE),
+    ('Victor', 'Stone', 'IT', 70000, CURRENT_DATE);
+
+UPDATE employees
+SET salary=salary*1.10
+WHERE last_name IN ('Wayne','Allen','Jordan','Curry','Stone');
+
+CREATE TABLE employee_archive AS
+    TABLE employees WITH NO DATA;
+
+INSERT INTO employee_archive
+SELECT * FROM employees WHERE status='Inactive';
+
+DELETE FROM employees WHERE status='Inactive';
+
+UPDATE projects p
+SET end_date=end_date+INTERVAL '30 days'
+WHERE budget>50000
+    AND (SELECT count(*) FROM employees e WHERE e.department=
+            (SELECT dept_name FROM departments d WHERE d.dept_id=p.dept_id))>3; 
